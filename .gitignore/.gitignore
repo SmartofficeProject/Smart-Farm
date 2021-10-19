@@ -1,0 +1,428 @@
+1. โค้ดการออกแบบ Sonoff 4CHPRO R2
+esphome:
+ name: sonoff-farm
+ platform: ESP8266
+ board: esp01_1m 
+# Enable logging
+logger:
+# Enable Home Assistant API
+api:
+ota:
+ password: "password"
+wifi:
+ ssid: "user"
+ password: "password"
+ manual_ip:
+ static_ip: 192.168.0.143
+ gateway: 192.168.0.1
+ subnet: 255.255.255.0
+ # Enable fallback hotspot (captive portal) in case wifi connection 
+fails
+ ap:
+ ssid: "Sonoff-Farm Fallback Hotspot"
+ password: "bwnT1f05J9MX"
+captive_portal:
+binary_sensor:
+ - platform: gpio
+ pin:
+ number: GPIO0
+ mode: INPUT_PULLUP
+ inverted: True
+ name: "Button Water"
+ - platform: gpio
+ pin:
+ number: GPIO9
+ mode: INPUT_PULLUP
+ inverted: True
+ name: "Button Compost"
+ - platform: gpio
+ pin:
+ number: GPIO10
+ mode: INPUT_PULLUP
+ inverted: True
+ name: "Button Fan"
+ - platform: gpio
+ pin:
+ number: GPIO14
+ mode: INPUT_PULLUP
+ inverted: True
+ name: "Button Light"
+ - platform: status
+ name: "Farm status"
+switch:
+ - platform: gpio
+ name: "Water"
+ pin: GPIO12
+ - platform: gpio
+ name: "Compost"
+ pin: GPIO5
+ - platform: gpio
+ name: "Fan"
+ pin: GPIO4
+ - platform: gpio
+ name: "Light"
+ pin: GPIO15
+output:
+ # Register the blue LED as a dimmable output ....
+ - platform: esp8266_pwm
+ id: blue_led
+ pin: GPIO13
+ inverted: True
+light:
+ # ... and then make a light out of it.
+ - platform: monochromatic
+ name: "Farm status LED"
+ output: blue_led
+192
+
+2. โค้ดการออกแบบ ESP lolin 32
+esphome:
+ name: sensor-farm-pj
+ platform: ESP32
+ board: esp32dev
+# Enable logging
+logger:
+# Enable Home Assistant API
+api:
+ota:
+ password: " password "
+wifi:
+ ssid: "user"
+ password: " password "
+ manual_ip:
+ static_ip: 192.168.0.142
+ gateway: 192.168.0.1
+ subnet: 255.255.255.0
+ # Enable fallback hotspot (captive portal) in case wifi connection 
+fails
+ ap:
+ ssid: "Sensor-Farm-Pj Fallback Hotspot"
+ password: "f2KtKwDLVPkE"
+captive_portal:
+i2c:
+- id: bus_a
+ sda: GPIO21
+ scl: GPIO22
+ scan: True
+- id: bus_b
+ sda: GPIO19
+ scl: GPIO23
+ scan: True
+ads1115:
+ - address: 0x48
+ i2c_id: bus_a
+sensor:
+ - platform: ccs811 #carbon and volatile
+ i2c_id: bus_a
+ eco2:
+ name: "CO2 in Farm"
+ tvoc:
+ name: "Volatile Organic Compound in Farm"
+ address: 0x5A
+ update_interval: 60s
+ - platform: bh1750 #illuminance1
+ i2c_id: bus_a
+ name: "Illuminance in Farm Area1"
+ address: 0x23
+ measurement_duration: 69
+ update_interval: 60s
+ 
+ - platform: bh1750 #illuminace2
+ i2c_id: bus_b
+ name: "Illuminance in Farm Area2"
+ address: 0x23
+ measurement_duration: 69
+ update_interval: 60s
+ - platform: ads1115 #soil humidity1
+ multiplexer: 'A2_GND'
+ gain: 6.144
+ name: "Soil Moisture In Farm"
+ update_interval: 60s
+ unit_of_measurement: "%"
+ filters:
+ - median:
+ window_size: 7
+ send_every: 4
+ send_first_at: 1
+ - calibrate_linear:
+ - 1.25 -> 100.00
+ - 2.8 -> 0.00
+ - lambda: if (x < 1) return 0; else return (x);
+ accuracy_decimals: 0
+ - platform: ads1115 #soil humidity2
+ multiplexer: 'A3_GND'
+ gain: 6.144
+ name: "Soil Moisture Out Farm"
+ update_interval: 60s
+ unit_of_measurement: "%"
+ filters:
+ - median:
+ window_size: 7
+ send_every: 4
+ send_first_at: 1
+ - calibrate_linear:
+ - 1.25 -> 100.00
+ - 2.8 -> 0.00
+ - lambda: if (x < 1) return 0; else return (x);
+ accuracy_decimals: 0
+ - platform: dht #temp and humi1
+ pin: GPIO32
+ model: DHT22
+ temperature:
+ name: "Temperature in Farm Area1"
+ humidity:
+ name: "Humidity in Farm Area1"
+ update_interval: 60s
+ 
+ - platform: dht #temp and humi2
+ pin: GPIO33
+ model: DHT22
+ temperature:
+ name: "Temperature in Farm Area2"
+ humidity:
+ name: "Humidity in Farm Area2"
+ update_interval: 60s
+time:
+ - platform: homeassistant
+ on_time:
+ - seconds: 0
+ minutes: 0
+ hours: 5
+ days_of_week: MON-SUN
+ then:
+ - switch.toggle: restart_switch
+ 
+switch:
+ - platform: restart
+ name: "Auto Restaert"
+ id: restart_switch
+ 
+3. การออกแบบ ESP8266MOD
+esphome:
+ name: energy-farm
+ platform: ESP8266
+ board: esp01_1m
+# Enable logging
+logger:
+# Enable Home Assistant API
+api:
+ota:
+ password: "password"
+wifi:
+ ssid: "user"
+ password: "password"
+ manual_ip:
+ static_ip: 192.168.0.106
+ gateway: 192.168.0.1
+ subnet: 255.255.255.0 
+ # Enable fallback hotspot (captive portal) in case wifi connection 
+fails
+ ap:
+ ssid: "Energy-Farm Fallback Hotspot"
+ password: "YD9iUqkumEEa"
+captive_portal:
+uart:
+ - id: ubus
+ tx_pin: GPIO4
+ rx_pin: GPIO5
+ baud_rate: 9600
+ stop_bits: 1
+switch:
+ - platform: uart
+ uart_id: ubus
+ name: "Reset Energy_Main"
+ data: [0x01, 0x42, 0x80, 0x11] 
+sensor:
+ - platform: pzemac
+ current:
+ name: "Farm Currentt"
+ unit_of_measurement: A
+ voltage:
+ name: "Farm Voltage"
+ unit_of_measurement: V
+ power:
+ name: "Farm Power"
+ unit_of_measurement: W
+ energy:
+ name: "Farm Energy"
+ unit_of_measurement: kWh
+ accuracy_decimals: 2
+ filters:
+ - calibrate_linear:
+ - 0 -> 0
+ - 8.68 -> 21
+ - multiply: 0.001
+ update_interval: 60s
+ 
+4. โค้ดการหาค่าเฉลี่ยของเซนเซอร์ของ Area 1 และ Area 2
+sensor:
+ - platform: average
+ name: 'Average Temperature'
+ entities:
+ - sensor.temperature_in_farm_area1
+ - sensor.temperature_in_farm_area2
+ - platform: average
+ name: 'Average Humidity'
+ entities:
+ - sensor.humidity_in_farm_area1
+ - sensor.humidity_in_farm_area2
+ - platform: average
+ name: 'Average Illuminace'
+ entities:
+ - sensor.illuminance_in_farm_area1
+ - sensor.illuminance_in_farm_area2
+ 
+5. โค้ดการสร้าง Plant Card เพื่อแสดงบน Overview
+plant:
+ chrysanthemum_plant_area1:
+ sensors:
+ temperature: sensor.temperature_in_farm_area1
+ moisture: sensor.humidity_in_farm_area1
+ brightness: sensor.illuminance_in_farm_area1
+ max_temperature: 40
+ min_temperature: 25
+ min_brightness: 0
+ max_brightness: 15000
+ min_moisture: 20
+ chrysanthemum_plant_area2:
+ sensors:
+ temperature: sensor.temperature_in_farm_area2
+ moisture: sensor.humidity_in_farm_area2 
+ brightness: sensor.illuminance_in_farm_area2
+ max_temperature: 40
+ min_temperature: 25
+ min_brightness: 0
+ max_brightness: 15000
+ min_moisture: 20 
+ chrysanthemum_plant_soil_in:
+ sensors:
+ moisture: sensor.soil_moisture_in_farm_2
+ max_moisture: 80
+ min_moisture: 30
+ chrysanthemum_plant_soil_out:
+ sensors:
+ moisture: sensor.soil_moisture_out_farm_2
+ max_moisture: 80
+ min_moisture: 30
+ 
+5. การออกแบบการแจ้งเตือน function node ใน Node-RED ของ หลอดไฟ พัดลมดูดอากาศ 
+ปั๊มน ้าและปุ๋ย
+msg.headers = 
+{"contenttype":"application/xwwwformurlencoded","Authorization"
+:"Bearer dFC64mocSIqA4ikbrlkbaw6lGMytgNIZCXwuM8L9PII"};
+197
+msg.payload = {"message": msg.payload};
+return msg;
+
+6. การออกแบบการแจ้งเตือน function node ใน Node-RED ของเซนเซอร์วัดค่าต่างๆใน
+โรงเรือน
+
+6.1 การแจ้งเตือนของเซนเซอร์วัดอุณหภูมิ
+var tempc = msg.payload
+var text = "ขณะนี้อุณหภูมิ " + tempc + msg.data.attributes.unit_of_measurement
+msg.headers = {"Content-type":"application/x-www-form-urlencoded", 
+"Authorization":"Bearer dFC64mocSIqA4ikbrlkbaw6lGMytgNIZCXwuM8L9PII"};
+msg.payload = {"message": text}; 
+return msg;
+
+6.2 การแจ้งเตือนของเซนเซอร์วัดความชื้นในอากาศ
+var tempc = msg.payload
+var text = "ขณะนี้ความชื้น" + tempc + msg.data.attributes.unit_of_measurement
+msg.headers = {"Content-type":"application/x-www-form-urlencoded", 
+"Authorization":"Bearer dFC64mocSIqA4ikbrlkbaw6lGMytgNIZCXwuM8L9PII"};
+msg.payload = {"message": text}; 
+return msg;
+
+6.3 การแจ้งเตือนของเซนเซอร์วัดความส่องสว่าง
+var tempc = msg.payload
+var text = "ขณะนี้แสงสว่าง " + tempc + msg.data.attributes.unit_of_measurement
+msg.headers = {"Content-type":"application/x-www-form-urlencoded", 
+"Authorization":"Bearer dFC64mocSIqA4ikbrlkbaw6lGMytgNIZCXwuM8L9PII"};
+msg.payload = {"message": text}; 
+return msg;
+
+6.4 การแจ้งเตือนของเซนเซอร์วัดความชื้นในดิน
+var tempc = msg.payload
+var text = "ขณะนี้ความชื้นในดิน " + tempc + 
+msg.data.attributes.unit_of_measurement
+msg.headers = {"Content-type":"application/x-www-form-urlencoded", 
+"Authorization":"Bearer dFC64mocSIqA4ikbrlkbaw6lGMytgNIZCXwuM8L9PII"};
+msg.payload = {"message": text}; 
+return msg;
+
+6.5 การแจ้งเตือนของเซนเซอร์วัดค่าก๊าซคาร์บอนไดออกไซด์
+var tempc = msg.payload
+var text = "ขณะนี้ค่าคาร์บอนไดออกไซด์" + tempc + msg.data.attributes.unit_of_
+ measurement
+msg.headers = {"Content-type":"application/x-www-form-urlencoded", 
+"Authorization":"Bearer dFC64mocSIqA4ikbrlkbaw6lGMytgNIZCXwuM8L9PII"};
+msg.payload = {"message": text}; 
+return msg;
+
+6.6 การแจ้งเตือนของเซนเซอร์วัดค่าการระเหยของสสารอินทรีย์
+var tempc = msg.payload
+var text = "Volatile organic compound " + tempc + 
+msg.data.attributes.unit_of_measurement
+msg.headers = {"Content-type":"application/x-www-form-urlencoded", 
+"Authorization":"Bearer dFC64mocSIqA4ikbrlkbaw6lGMytgNIZCXwuM8L9PII"};
+msg.payload = {"message": text}; 
+return msg;
+
+7. การออกแบบแจ้งเตือนค่าไฟฟ้า
+var m_unit = (msg.payload);
+var m_cost;
+if (m_unit <=150){
+ m_cost = ((m_unit * 3.2484)+38.22)+(((((m_unit * 3.2484)+38.22) 
+ - (m_unit * 0.1532))*0.07) - (m_unit *0.1532));
+}
+if (m_unit >=151 && m_unit <= 400){
+ m_cost = (((150 * 3.2484)+38.22)+(((((150 * 3.2484)+38.22)-(150 * 
+ 0.1532))*0.07)
+ - ( 150*0.1532)));
+ m_unit = m_unit - 150;
+ m_cost = m_cost + (((m_unit * 4.2218)+38.22)+(((((m_unit *
+ 4.2218)+38.22)
+ - (m_unit * 0.1532))*0.07) - (m_unit *0.1532)));
+}
+if (m_unit > 400){
+ m_cost = (((((150 * 3.2484)+38.22)+(((((150 * 3.2484)+38.22)
+ -(150 * 0.1532))*0.07)
+ - ( 150*0.1532))) + (((250 * 4.2218)+38.22)+(((((250 * 4.2218)
+ +38.22)-(250 *0.1532))*0.07)-(250 *0.1532))) + ((((m_unit - 400)
+ * 4.4217)+38.22)+((((((m_unit - 400) * 4.4217)+38.22) - ((m_unit
+ - 400) * 0.1532))*0.07) 
+ - ((m_unit - 400) *0.1532)))))
+}
+msg.payload = parseFloat(m_cost).toFixed(2);
+var tempc = msg.payload
+var text = " ค่าไฟ " + tempc + " บาท "
+msg.headers = {"Content-type":"application/x-www-form-urlencoded", 
+"Authorization":"Bearer 
+dFC64mocSIqA4ikbrlkbaw6lGMytgNIZCXwuM8L9PII"};
+msg.payload = {"message": text}; 
+return msg;
+
+8. โค้ดการสั่งเปิดโคมไฟใน Automation 
+platform: numeric_state
+below: '5'
+entity_id: sensor.average_illuminace
+condition: template
+value_template: |-
+ {% set n = now() %}
+ {{ n.month == 7 and ( 1 <= n.day <= 30 ) }}
+type: turn_on
+device_id: 35c819e890089f003dc58519d0f2ce07
+entity_id: switch.light
+domain: switch
+
+9. โค้ดการสั่งปิดโคมไฟใน Automation 
+platform: numeric_state
+entity_id: sensor.average_illuminace
+above: '350'
+value_template: |-
+ {% set n = now() %}
+ {{ n.month == 7 and ( 1 <= n.day <= 30 ) }}
+type: turn_off
+device_id: 35c819e890089f003dc58519d0f2ce07
+entity_id: switch.light
+domain: switch
